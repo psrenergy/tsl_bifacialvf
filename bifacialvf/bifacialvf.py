@@ -223,7 +223,7 @@ def getEPW(lat=None, lon=None, GetAll=False, path = None):
     #return self.epwfile
     return epwfile
 
-def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180, 
+def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180, 
              clearance_height=None, hub_height = None, 
              pitch=None, rowType='interior', transFactor=0.01, sensorsy=6, 
              PVfrontSurface='glass', PVbackSurface='glass', albedo=None,  
@@ -231,7 +231,7 @@ def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180,
              calculatePVMismatch=False, cellsnum= 72, 
              portraitorlandscape='landscape', bififactor = 1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
-             deltastyle='TMY3', agriPV=False):
+             deltastyle='TMY3', agriPV=False, calcule_gti=False, gti=None):
 
         '''
       
@@ -266,6 +266,20 @@ def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180,
         -------
         none
         '''    
+
+        num_discrete_elements = 100
+
+        if (calcule_gti == False) and (gti is None):
+            raise ValueError(
+                "Invalid configuration: 'calcule_gti' is set to False and 'gti' is None. "
+                "This means there is no GTI data available for calculations. "
+                "Please either set 'calcule_gti' to True or provide a valid 'gti' value."
+            )
+
+        # 0. Correct azimuth if we're on southern hemisphere, so that 3.14
+        # points north instead of south
+        if (meta['latitude'] < 0) and (azimFlag != 1):
+            sazm = sazm + 180.0 # In the `trigon.py` function, the logic is to add π to the azimuth. Since it is in degrees, we add 180° instead
 
         if (clearance_height == None) & (hub_height != None):
             clearance_height = hub_height
@@ -316,9 +330,9 @@ def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180,
     
         if not (('azimuth' in myTMY3) and ('zenith' in myTMY3) and ('elevation' in myTMY3)):
             solpos, sunup = sunrisecorrectedsunposition(myTMY3, meta, deltastyle = deltastyle)
-            myTMY3['zenith'] = np.radians(solpos['zenith'])
-            myTMY3['azimuth'] = np.radians(solpos['azimuth'])
-            myTMY3['elevation']=np.radians(solpos['elevation'])
+            myTMY3['zenith'] = np.radians(solpos['zenith'].to_numpy())
+            myTMY3['azimuth'] = np.radians(solpos['azimuth'].to_numpy())
+            myTMY3['elevation']=np.radians(solpos['elevation'].to_numpy())
         
         
         if tracking == True:        
@@ -442,6 +456,7 @@ def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180,
             
             
             for rl in tqdm(range(noRows)):
+                index = 0
                 
                 myTimestamp=myTMY3.index[rl]
                 hour = myTimestamp.hour
@@ -492,7 +507,7 @@ def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180,
                     ghi, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, zen, 0.0, zen)
                     
                     
-                    for k in range (0, 100):
+                    for k in range (0, num_discrete_elements):
                     
                         rearGroundGHI.append(iso_dif * rearSkyConfigFactors[k])       # Add diffuse sky component viewed by ground
                         if (rearGroundSH[k] == 0):
@@ -510,8 +525,15 @@ def simulate(myTMY3, meta, writefiletitle=None, tilt=0, sazm=180,
                     # b. CALCULATE THE AOI CORRECTED IRRADIANCE ON THE FRONT OF THE PV MODULE, AND IRRADIANCE REFLECTED FROM FRONT OF PV MODULE ***************************
                     #double[] frontGTI = new double[sensorsy], frontReflected = new double[sensorsy]
                     #double aveGroundGHI = 0.0          # Average GHI on ground under PV array
-                    aveGroundGHI, frontGTI, frontReflected = getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvFrontSH, frontGroundGHI)
-    
+                    
+                    if (calcule_gti):
+                        aveGroundGHI, frontGTI, frontReflected = getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvFrontSH, frontGroundGHI, num_discrete_elements)
+                    
+                    else: # calculate_gti == False
+                        frontReflected = ([0.0] * sensorsy)
+                        frontGTI = gti[index:index+sensorsy]
+                        index += sensorsy
+
                     #double inc, tiltr, sazmr
                     inc, tiltr, sazmr = sunIncident(0, tilt, sazm, 45.0, zen, azm)	    # For calling PerezComp to break diffuse into components for 
                     save_inc=inc
