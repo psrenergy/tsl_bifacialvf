@@ -22,7 +22,7 @@ DTOR = math.pi / 180.0  # Factor for converting from degrees to radians
 def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
                               dni, dhi, C, D, albedo, zen, azm, cellRows,
                               pvBackSH, rearGroundGHI, frontGroundGHI,
-                              frontReflected, offset=0):      
+                              frontReflected, num_discrete_elements, offset=0):      
     """
     This method calculates the AOI corrected irradiance on the back of the PV
     module/panel. 11/19/2015
@@ -191,8 +191,8 @@ def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
     # Average GHI on ground under PV array for cases when x projection exceed
     # 2*rtr
     aveGroundGHI = 0.0
-    for i in range(0,100):
-        aveGroundGHI += rearGroundGHI[i] / 100.0
+    for i in range(0,num_discrete_elements):
+        aveGroundGHI += rearGroundGHI[i] / num_discrete_elements
 
     # Calculate x,y coordinates of bottom and top edges of PV row in back of desired PV row so that portions of sky and ground viewed by the 
     # PV cell may be determined. Origin of x-y axis is the ground pobelow the lower front edge of the desired PV row. The row in back of 
@@ -313,8 +313,8 @@ def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
             
             else:
             
-                projectedX1 = 100.0 * projectedX1 / rtr;                        # Normalize projections and multiply by 100
-                projectedX2 = 100.0 * projectedX2 / rtr;
+                projectedX1 = num_discrete_elements * projectedX1 / rtr;                        # Normalize projections and multiply by 100
+                projectedX2 = num_discrete_elements * projectedX2 / rtr;
                 #Console.WriteLine("projectedX1 = 0 projectedX2 = 1", projectedX1, projectedX2);
 
                 if ((rowType == "last" or rowType == "single") and (abs(projectedX1) > 99.0 or abs(projectedX2) > 99.0)):    #4/19/2016
@@ -323,25 +323,25 @@ def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
                 
                 else:
                 
-                    while (projectedX1 >= 100.0 or projectedX2 >= 100.0):            # Offset so array indexes are less than 100
+                    while (projectedX1 >= num_discrete_elements or projectedX2 >= num_discrete_elements):            # Offset so array indexes are less than 100
                     
-                        projectedX1 -= 100.0;
-                        projectedX2 -= 100.0;
+                        projectedX1 -= num_discrete_elements;
+                        projectedX2 -= num_discrete_elements;
                     
-                    while (projectedX1 < -100.0 or projectedX2 < -100.0):            # Offset so array indexes are >= -100.0  12/13/2016
+                    while (projectedX1 < -num_discrete_elements or projectedX2 < -num_discrete_elements):            # Offset so array indexes are >= -100.0  12/13/2016
                     
-                        projectedX1 += 100.0;
-                        projectedX2 += 100.0;
+                        projectedX1 += num_discrete_elements;
+                        projectedX2 += num_discrete_elements;
                     
 
                     #Console.WriteLine("projectedX1 = 0 projectedX2 = 1", projectedX1, projectedX2);
-                    index1 = (int)(projectedX1 + 100.0) - 100;                  # Determine indexes for use with rearGroundGHI array and frontGroundGHI array(truncates values)
-                    index2 = (int)(projectedX2 + 100.0) - 100;                  # (int)(1.9) = 1 and (int)(-1.9) = -1; (int)(1.9+100) - 100 = 1 and (int)(-1.9+100) - 100 = -2
+                    index1 = (int)(projectedX1 + num_discrete_elements) - num_discrete_elements;                  # Determine indexes for use with rearGroundGHI array and frontGroundGHI array(truncates values)
+                    index2 = (int)(projectedX2 + num_discrete_elements) - num_discrete_elements;                  # (int)(1.9) = 1 and (int)(-1.9) = -1; (int)(1.9+100) - 100 = 1 and (int)(-1.9+100) - 100 = -2
                     #Console.WriteLine("index1=0 index2=1", index1, index2);
                     if (index1 == index2):
                     
                         if (index1 < 0):
-                            actualGroundGHI = frontGroundGHI[index1 + 100];
+                            actualGroundGHI = frontGroundGHI[index1 + num_discrete_elements];
                         #actualGroundGHI = 0.0;
                         else:
                             actualGroundGHI = rearGroundGHI[index1];                        # x projections in same groundGHI element THIS SEEMS TO ADD HICCUP 4/26/2016 ***************************
@@ -354,21 +354,21 @@ def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
                             if (k == index1):
                             
                                 if (k < 0):
-                                    actualGroundGHI += frontGroundGHI[k + 100] * (k + 1.0 - projectedX1);
+                                    actualGroundGHI += frontGroundGHI[k + num_discrete_elements] * (k + 1.0 - projectedX1);
                                 else:
                                     actualGroundGHI += rearGroundGHI[k] * (k + 1.0 - projectedX1);
                             
                             elif (k == index2):
                             
                                 if (k < 0):
-                                    actualGroundGHI += frontGroundGHI[k + 100] * (projectedX2 - k);
+                                    actualGroundGHI += frontGroundGHI[k + num_discrete_elements] * (projectedX2 - k);
                                 else:
                                     actualGroundGHI += rearGroundGHI[k] * (projectedX2 - k);
                             
                             else:
                             
                                 if (k < 0):
-                                    actualGroundGHI += frontGroundGHI[k + 100];
+                                    actualGroundGHI += frontGroundGHI[k + num_discrete_elements];
                                 else:
                                     actualGroundGHI += rearGroundGHI[k];
                             
@@ -412,7 +412,7 @@ def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
 
 def getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, beta, sazm,
                                dni, dhi, C, D, albedo, zen, azm, cellRows,
-                               pvFrontSH, frontGroundGHI):      
+                               pvFrontSH, frontGroundGHI, num_discrete_elements):      
     """
     This method calculates the AOI corrected irradiance on the front of the PV
     module/panel and the irradiance reflected from the the front of the PV
@@ -565,8 +565,8 @@ def getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, beta, sazm,
     Ro = math.pow((n2 - 1.0) / (n2 + 1.0), 2.0);     # Reflectance at normal incidence, Duffie and Beckman p217
 
     aveGroundGHI = 0.0;          # Average GHI on ground under PV array for cases when x projection exceed 2*rtr
-    for i in range (0,100):
-        aveGroundGHI += frontGroundGHI[i] / 100.0;
+    for i in range (0, num_discrete_elements):
+        aveGroundGHI += frontGroundGHI[i] / num_discrete_elements;
 
     # Calculate x,y coordinates of bottom and top edges of PV row in front of desired PV row so that portions of sky and ground viewed by the 
     # PV cell may be determined. Origin of x-y axis is the ground pobelow the lower front edge of the desired PV row. The row in front of 
@@ -653,8 +653,8 @@ def getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, beta, sazm,
             
             else:
             
-                projectedX1 = 100.0 * projectedX1 / rtr;                        # Normalize projections and multiply by 100
-                projectedX2 = 100.0 * projectedX2 / rtr;
+                projectedX1 = num_discrete_elements * projectedX1 / rtr;                        # Normalize projections and multiply by 100
+                projectedX2 = num_discrete_elements * projectedX2 / rtr;
                 if ((rowType == "first" or rowType == "single") and (abs(projectedX1) > rtr or abs(projectedX2) > rtr)):    #4/19/2016
                 
                     actualGroundGHI = ghi;                                      # Use total value if projection > rtr for "first" or "single"
@@ -663,8 +663,8 @@ def getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, beta, sazm,
                 
                     while (projectedX1 < 0.0 or projectedX2 < 0.0):                  # Offset so array indexes are positive
                     
-                        projectedX1 += 100.0;
-                        projectedX2 += 100.0;
+                        projectedX1 += num_discrete_elements;
+                        projectedX2 += num_discrete_elements;
                     
                     index1 = int(projectedX1);                                  # Determine indexes for use with groundGHI array (truncates values)
                     index2 = int(projectedX2);
@@ -682,17 +682,17 @@ def getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, beta, sazm,
                                 actualGroundGHI += frontGroundGHI[k] * (k + 1.0 - projectedX1);
                             elif (k == index2):
                             
-                                if (k < 100):
+                                if (k < num_discrete_elements):
                                     actualGroundGHI += frontGroundGHI[k] * (projectedX2 - k);
                                 else:
-                                    actualGroundGHI += frontGroundGHI[k - 100] * (projectedX2 - k);
+                                    actualGroundGHI += frontGroundGHI[k - num_discrete_elements] * (projectedX2 - k);
                             
                             else:
                             
-                                if (k < 100):
+                                if (k < num_discrete_elements):
                                     actualGroundGHI += frontGroundGHI[k];
                                 else:
-                                    actualGroundGHI += frontGroundGHI[k - 100];
+                                    actualGroundGHI += frontGroundGHI[k - num_discrete_elements];
                             
                         
                         actualGroundGHI /= projectedX2 - projectedX1;                # Irradiance on ground in the 1 degree field of view
