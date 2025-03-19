@@ -231,7 +231,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
              calculatePVMismatch=False, cellsnum= 72, 
              portraitorlandscape='landscape', bififactor = 1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
-             deltastyle='TMY3', agriPV=False, calcule_gti=False, gti=None):
+             deltastyle='TMY3', agriPV=False, calcule_gti=False, irrad=None):
 
         '''
       
@@ -269,12 +269,15 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
 
         num_discrete_elements = 100
 
-        if (calcule_gti == False) and (gti is None):
-            raise ValueError(
-                "Invalid configuration: 'calcule_gti' is set to False and 'gti' is None. "
-                "This means there is no GTI data available for calculations. "
-                "Please either set 'calcule_gti' to True or provide a valid 'gti' value."
-            )
+        if (calcule_gti == False):
+            if (irrad is None):
+                raise ValueError(
+                    "Invalid configuration: 'calcule_gti' is set to False and 'irrad' is None. "
+                    "This means there is no GTI data available for calculations. "
+                    "Please either set 'calcule_gti' to True or provide a valid 'irrad' value."
+                )
+            else: # irrad is not None
+                gti = irrad.direct.to_numpy() + irrad.diffuse.to_numpy()
 
         # 0. Correct azimuth if we're on southern hemisphere, so that 3.14
         # points north instead of south
