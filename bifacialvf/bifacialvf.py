@@ -42,6 +42,8 @@ from bifacialvf.sun import  perezComp,  sunIncident, sunrisecorrectedsunposition
 from bifacialvf.analysis import analyseVFResultsBilInterpol, analyseVFResultsPVMismatch
 #import bifacialvf.analysis as analysis
 
+from gsee import trigon
+
 def readInputTMY(TMYtoread):
     '''
     ## Read TMY3 data and start loop ~  
@@ -231,7 +233,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
              calculatePVMismatch=False, cellsnum= 72, 
              portraitorlandscape='landscape', bififactor = 1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
-             deltastyle='TMY3', agriPV=False, calcule_gti=False, irrad=None):
+             deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None):
 
         '''
       
@@ -270,13 +272,28 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         num_discrete_elements = 100
 
         if (calcule_gti == False):
-            if (irrad is None):
+            if (data is None):
                 raise ValueError(
-                    "Invalid configuration: 'calcule_gti' is set to False and 'irrad' is None. "
+                    "Invalid configuration: 'calcule_gti' is set to False and 'data' is None. "
                     "This means there is no GTI data available for calculations. "
-                    "Please either set 'calcule_gti' to True or provide a valid 'irrad' value."
+                    "Please either set 'calcule_gti' to True or provide a valid 'data' value."
                 )
             else: # irrad is not None
+                # Process data for irrad
+                dir_horiz = data.global_horizontal * (1 - data.diffuse_fraction)
+                diff_horiz = data.global_horizontal * data.diffuse_fraction
+
+                # NB: aperture_irradiance expects azim/tilt in radians!
+                irrad = trigon.aperture_irradiance(
+                    dir_horiz,
+                    diff_horiz,
+                    [meta['latitude'], meta['longitude']],
+                    tracking=tracking,
+                    azimuth=math.radians(sazm),
+                    tilt=math.radians(tilt),
+                    angles=angles,
+                    azimFlag=azimFlag
+    )
                 gti = irrad.direct.to_numpy() + irrad.diffuse.to_numpy()
 
         # 0. Correct azimuth if we're on southern hemisphere, so that 3.14
