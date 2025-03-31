@@ -30,7 +30,8 @@ import os
 #import pytz
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+# from tqdm import tqdm
+import time
 
 from bifacialvf.vf import getBackSurfaceIrradiances, getFrontSurfaceIrradiances, getGroundShadeFactors
 from bifacialvf.vf import getSkyConfigurationFactors, trackingBFvaluescalculator, rowSpacing
@@ -419,210 +420,212 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         savedirectory = os.path.dirname(writefiletitle)
         if ( (not os.path.exists(savedirectory)) and (savedirectory != '')):
             os.makedirs(savedirectory)
-        
-
                     
-        with open (writefiletitle,'w') as csvfile:
-            sw = csv.writer(csvfile, delimiter=',', quotechar='|', 
-                            quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
-            # Write Simulation Parameters (from setup file)
             
-            
-            if tracking==False and backtrack==True:
-                print("Warning: tracking=False, but backtracking=True. ",
-                      "Setting backtracking=False because it doesn't make ",
-                      "sense to backtrack on fixed tilt systems.")
-                backtrack = False
-            outputheader=['Latitude(deg)','Longitude(deg)', 'Time Zone','Tilt(deg)', 
-                         'PV Azimuth(deg)',heightlabel, 'Pitch', 'RowType(first interior last single)',
-                         'TransmissionFactor(open area fraction)','sensorsy(# hor rows in panel)', 
-                         'PVfrontSurface(glass or ARglass)', 'PVbackSurface(glass or ARglass)',
-                         'Albedo',  'Tracking', 'backtracking']
-            outputheadervars=[lat, lng, tz, tilt, sazm, clearance_height, pitch, 
-                              rowType, transFactor, sensorsy, PVfrontSurface,
-                             PVbackSurface, albedo, tracking, backtrack]
+        if tracking==False and backtrack==True:
+            print("Warning: tracking=False, but backtracking=True. ",
+                    "Setting backtracking=False because it doesn't make ",
+                    "sense to backtrack on fixed tilt systems.")
+            backtrack = False
+        # outputheader=['Latitude(deg)','Longitude(deg)', 'Time Zone','Tilt(deg)', 
+        #                 'PV Azimuth(deg)',heightlabel, 'Pitch', 'RowType(first interior last single)',
+        #                 'TransmissionFactor(open area fraction)','sensorsy(# hor rows in panel)', 
+        #                 'PVfrontSurface(glass or ARglass)', 'PVbackSurface(glass or ARglass)',
+        #                 'Albedo',  'Tracking', 'backtracking']
+        # outputheadervars=[lat, lng, tz, tilt, sazm, clearance_height, pitch, 
+        #                     rowType, transFactor, sensorsy, PVfrontSurface,
+        #                     PVbackSurface, albedo, tracking, backtrack]
             
                                             
-            sw.writerow(outputheader)
-            sw.writerow(outputheadervars)
+        # sw.writerow(outputheader)
+        # sw.writerow(outputheadervars)
             
-            # Write Results names"
-            allrowfronts=[]
-            allrowbacks=[]
-            for k in range(0, sensorsy):
-                allrowfronts.append("No_"+str(k+1)+"_RowFrontGTI")
-                allrowbacks.append("No_"+str(k+1)+"_RowBackGTI")      
-            outputtitles=['date', 'DNI', 'DHI', 
-                          'albedo', 'decHRs', 'ghi', 'inc', 'zen', 'azm', 'pvFrontSH', 
-                         'aveFrontGroundGHI', 'GTIfrontBroadBand', 'pvBackSH', 
-                         'aveBackGroundGHI', 'GTIbackBroadBand', 'maxShadow', 'Tamb', 'VWind']
-            outputtitles+=allrowfronts
-            outputtitles+=allrowbacks
-            if tracking == True:
-                print( " ***** IMPORTANT --> THIS SIMULATION Has Tracking Activated")
-                print( "Backtracking Option is set to: ", backtrack)
-                outputtitles+=['tilt']
-                outputtitles+=['sazm']
-                outputtitles+=['height']
-                outputtitles+=['D']
+        # Write Results names"
+        allrowfronts=[]
+        allrowbacks=[]
+        for k in range(0, sensorsy):
+            allrowfronts.append("No_"+str(k+1)+"_RowFrontGTI")
+            allrowbacks.append("No_"+str(k+1)+"_RowBackGTI")      
+        outputtitles=['date', 'DNI', 'DHI', 
+                        'albedo', 'decHRs', 'ghi', 'inc', 'zen', 'azm', 'pvFrontSH', 
+                        'aveFrontGroundGHI', 'GTIfrontBroadBand', 'pvBackSH', 
+                        'aveBackGroundGHI', 'GTIbackBroadBand', 'maxShadow', 'Tamb', 'VWind']
+        outputtitles+=allrowfronts
+        outputtitles+=allrowbacks
+        if tracking == True:
+            print( " ***** IMPORTANT --> THIS SIMULATION Has Tracking Activated")
+            print( "Backtracking Option is set to: ", backtrack)
+            outputtitles+=['tilt']
+            outputtitles+=['sazm']
+            outputtitles+=['height']
+            outputtitles+=['D']
 
-            if agriPV:
-                print("Saving Ground Irradiance Values for AgriPV Analysis. ")
-                outputtitles+=['Ground Irradiance Values']
-            sw.writerow(outputtitles)
-            
-            ## Loop through file.  TODO: replace this with for loop.
-            rl = 0
-            
-            
-            for rl in tqdm(range(noRows)):
-                index = 0
+        if agriPV:
+            print("Saving Ground Irradiance Values for AgriPV Analysis. ")
+            outputtitles+=['Ground Irradiance Values']
+        
+        output_df = pd.DataFrame(columns=outputtitles)
+        
+        start = time.time()
+        for rl in range(noRows):
+            index = 0
                 
-                myTimestamp=myTMY3.index[rl]
-                hour = myTimestamp.hour
-                minute = myTimestamp.minute
-                dni = myTMY3.DNI.iloc[rl]#get_value(rl,5,"False")
-                dhi = myTMY3.DHI.iloc[rl]#get_value(rl,8,"False")
-                if 'DryBulb' in myTMY3: Tamb=myTMY3.DryBulb.iloc[rl]
-                else: Tamb=0	            
-                if 'Wspd' in myTMY3: VWind = myTMY3.Wspd.iloc[rl]	           
-                else: VWind=0
+            myTimestamp=myTMY3.index[rl]
+            hour = myTimestamp.hour
+            minute = myTimestamp.minute
+            dni = myTMY3.DNI.iloc[rl]#get_value(rl,5,"False")
+            dhi = myTMY3.DHI.iloc[rl]#get_value(rl,8,"False")
+            if 'DryBulb' in myTMY3: Tamb=myTMY3.DryBulb.iloc[rl]
+            else: Tamb=0	            
+            if 'Wspd' in myTMY3: VWind = myTMY3.Wspd.iloc[rl]	           
+            else: VWind=0
                 
 
                 
-                if useTMYalbedo:
-                    albedo = myTMY3.Alb[rl]
+            if useTMYalbedo:
+                albedo = myTMY3.Alb[rl]
                                                               
-                zen = myTMY3['zenith'].iloc[rl]
-                azm = myTMY3['azimuth'].iloc[rl]
-                elv = myTMY3['elevation'].iloc[rl]
+            zen = myTMY3['zenith'].iloc[rl]
+            azm = myTMY3['azimuth'].iloc[rl]
+            elv = myTMY3['elevation'].iloc[rl]
     
-                if (zen < 0.5 * math.pi):    # If daylight hours
+            if (zen < 0.5 * math.pi):    # If daylight hours
                 
-                    # a. CALCULATE THE IRRADIANCE DISTRIBUTION ON THE GROUND 
-                    #********************************************************
-                    #double[] rearGroundGHI = new double[100], frontGroundGHI = new double[100]
-                    # For global horizontal irradiance for each of 100 ground segments, to the rear and front of front of row edge         
-                    # Determine where on the ground the direct beam is shaded for a sun elevation and azimuth
-                    #int[] rearGroundSH = new int[100], frontGroundSH = new int[100]
-                    # Front and rear row-to-row spacing divided into 100 segments, (later becomes 1 if direct beam is shaded, 0 if not shaded)
-                    #double pvFrontSH = 0.0, pvBackSH = 0.0, maxShadow    
-                    # Initialize fraction of PV module front and back surfaces that are shaded to zero (not shaded), and maximum shadow projected from front of row.
+                # a. CALCULATE THE IRRADIANCE DISTRIBUTION ON THE GROUND 
+                #********************************************************
+                #double[] rearGroundGHI = new double[100], frontGroundGHI = new double[100]
+                # For global horizontal irradiance for each of 100 ground segments, to the rear and front of front of row edge         
+                # Determine where on the ground the direct beam is shaded for a sun elevation and azimuth
+                #int[] rearGroundSH = new int[100], frontGroundSH = new int[100]
+                # Front and rear row-to-row spacing divided into 100 segments, (later becomes 1 if direct beam is shaded, 0 if not shaded)
+                #double pvFrontSH = 0.0, pvBackSH = 0.0, maxShadow    
+                # Initialize fraction of PV module front and back surfaces that are shaded to zero (not shaded), and maximum shadow projected from front of row.
                     
-                    # TRACKING ROUTINE CALULATING GETSKYCONFIGURATION FACTORS
-                    if tracking == True:                                   
-                        tilt = myTMY3['trackingdata_surface_tilt'].iloc[rl]
-                        sazm = myTMY3['trackingdata_surface_azimuth'].iloc[rl]
-                        C = myTMY3['C'].iloc[rl]                        
-                        D = myTMY3['D'].iloc[rl]
+                # TRACKING ROUTINE CALULATING GETSKYCONFIGURATION FACTORS
+                if tracking == True:                                   
+                    tilt = myTMY3['trackingdata_surface_tilt'].iloc[rl]
+                    sazm = myTMY3['trackingdata_surface_azimuth'].iloc[rl]
+                    C = myTMY3['C'].iloc[rl]                        
+                    D = myTMY3['D'].iloc[rl]
                         
-                        [rearSkyConfigFactors, frontSkyConfigFactors] = getSkyConfigurationFactors(rowType, tilt, C, D)       ## Sky configuration factors are the same for all times, only based on geometry and row type
+                    [rearSkyConfigFactors, frontSkyConfigFactors] = getSkyConfigurationFactors(rowType, tilt, C, D)       ## Sky configuration factors are the same for all times, only based on geometry and row type
 
-                    rearGroundGHI=[]
-                    frontGroundGHI=[]
-                    pvFrontSH, pvBackSH, maxShadow, rearGroundSH, frontGroundSH = getGroundShadeFactors (rowType, tilt, C, D, elv, azm, sazm)
+                rearGroundGHI=[]
+                frontGroundGHI=[]
+                pvFrontSH, pvBackSH, maxShadow, rearGroundSH, frontGroundSH = getGroundShadeFactors (rowType, tilt, C, D, elv, azm, sazm)
             
-                    # Sum the irradiance components for each of the ground segments, to the front and rear of the front of the PV row
-                    #double iso_dif = 0.0, circ_dif = 0.0, horiz_dif = 0.0, grd_dif = 0.0, beam = 0.0   # For calling PerezComp to break diffuse into components for zero tilt (horizontal)                           
-                    ghi, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, zen, 0.0, zen)
+                # Sum the irradiance components for each of the ground segments, to the front and rear of the front of the PV row
+                #double iso_dif = 0.0, circ_dif = 0.0, horiz_dif = 0.0, grd_dif = 0.0, beam = 0.0   # For calling PerezComp to break diffuse into components for zero tilt (horizontal)                           
+                ghi, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, zen, 0.0, zen)
                     
                     
-                    for k in range (0, num_discrete_elements):
+                for k in range (0, num_discrete_elements):
                     
-                        rearGroundGHI.append(iso_dif * rearSkyConfigFactors[k])       # Add diffuse sky component viewed by ground
-                        if (rearGroundSH[k] == 0):
-                            rearGroundGHI[k] += beam + circ_dif                    # Add beam and circumsolar component if not shaded
-                        else:
-                            rearGroundGHI[k] += (beam + circ_dif) * transFactor    # Add beam and circumsolar component transmitted thru module spacing if shaded
-            
-                        frontGroundGHI.append(iso_dif * frontSkyConfigFactors[k])     # Add diffuse sky component viewed by ground
-                        if (frontGroundSH[k] == 0):
-                            frontGroundGHI[k] += beam + circ_dif                   # Add beam and circumsolar component if not shaded 
-                        else:
-                            frontGroundGHI[k] += (beam + circ_dif) * transFactor   # Add beam and circumsolar component transmitted thru module spacing if shaded
-                    
-            
-                    # b. CALCULATE THE AOI CORRECTED IRRADIANCE ON THE FRONT OF THE PV MODULE, AND IRRADIANCE REFLECTED FROM FRONT OF PV MODULE ***************************
-                    #double[] frontGTI = new double[sensorsy], frontReflected = new double[sensorsy]
-                    #double aveGroundGHI = 0.0          # Average GHI on ground under PV array
-                    
-                    if (calcule_gti):
-                        aveGroundGHI, frontGTI, frontReflected = getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvFrontSH, frontGroundGHI, num_discrete_elements)
-                    
-                    else: # calculate_gti == False
-                        frontReflected = ([0.0] * sensorsy)
-                        frontGTI = gti[index:index+sensorsy]
-                        index += sensorsy
-
-                    #double inc, tiltr, sazmr
-                    inc, tiltr, sazmr = sunIncident(0, tilt, sazm, 45.0, zen, azm)	    # For calling PerezComp to break diffuse into components for 
-                    save_inc=inc
-                    gtiAllpc, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, inc, tiltr, zen)   # Call to get components for the tilt
-                    save_gtiAllpc=gtiAllpc
-                    #sw.Write(strLine)
-                    #sw.Write(",{0,6:0.00}", hour - 0.5 * dataInterval / 60.0 + minute / 60.0)
-                    #sw.Write(",{0,6:0.0},{1,5:0.0},{2,5:0.0},{3,5:0.0},{4,4:0.00},{5,6:0.0},{6,6:0.0}",
-                        #dni * Math.Cos(zen) + dhi, inc * 180.0 / Math.PI, zen * 180.0 / Math.PI, azm * 180.0 / Math.PI, pvFrontSH, aveGroundGHI, gtiAllpc)
-            
-                    # CALCULATE THE AOI CORRECTED IRRADIANCE ON THE BACK OF THE PV MODULE
-                    #double[] backGTI = new double[sensorsy]
-                    backGTI, aveGroundGHI = getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvBackSH, rearGroundGHI, frontGroundGHI, frontReflected, num_discrete_elements, offset=0)
-               
-                    inc, tiltr, sazmr = sunIncident(0, 180.0-tilt, sazm-180.0, 45.0, zen, azm)       # For calling PerezComp to break diffuse into components for 
-                    gtiAllpc, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, inc, tiltr, zen)   # Call to get components for the tilt
-                    
-                    
-                    ## Write output
-                    decHRs = hour - 0.5 * dataInterval / 60.0 + minute / 60.0
-                    ghi_calc = dni * math.cos(zen) + dhi 
-                    incd = save_inc * 180.0 / math.pi
-                    zend = zen * 180.0 / math.pi
-                    azmd = azm * 180.0 / math.pi
-                    outputvalues=[myTimestamp, dni, dhi, albedo, decHRs, 
-                                  ghi_calc, incd, zend, azmd, pvFrontSH, aveGroundGHI, 
-                                  save_gtiAllpc, pvBackSH, aveGroundGHI, 
-                                  gtiAllpc, maxShadow, Tamb, VWind]
-                    frontGTIrow=[]
-                    backGTIrow=[]
-                    
-                    # INVERTING Sensor measurements for tracking when tracker
-                    # facing the west side.
-                    # TODO: Modify so it works with axis_azm different of 0 
-                    #        (sazm = 90 or 270 only)
-                    if tracking == True:                                   
-                        if sazm == 270.0:
-                            rangestart = sensorsy-1
-                            rangeend = -1
-                            steprange = -1
-                            rearGroundGHI.reverse()
-                        else:
-                            rangestart = 0
-                            rangeend = sensorsy
-                            steprange = 1
+                    rearGroundGHI.append(iso_dif * rearSkyConfigFactors[k])       # Add diffuse sky component viewed by ground
+                    if (rearGroundSH[k] == 0):
+                        rearGroundGHI[k] += beam + circ_dif                    # Add beam and circumsolar component if not shaded
                     else:
-                            rangestart = 0
-                            rangeend = sensorsy
-                            steprange = 1
-                            
-                    for k in range(rangestart, rangeend, steprange):
-                        frontGTIrow.append(frontGTI[k])
-                        backGTIrow.append(backGTI[k])      
-                    outputvalues+=frontGTIrow
-                    outputvalues+=backGTIrow
+                        rearGroundGHI[k] += (beam + circ_dif) * transFactor    # Add beam and circumsolar component transmitted thru module spacing if shaded
+            
+                    frontGroundGHI.append(iso_dif * frontSkyConfigFactors[k])     # Add diffuse sky component viewed by ground
+                    if (frontGroundSH[k] == 0):
+                        frontGroundGHI[k] += beam + circ_dif                   # Add beam and circumsolar component if not shaded 
+                    else:
+                        frontGroundGHI[k] += (beam + circ_dif) * transFactor   # Add beam and circumsolar component transmitted thru module spacing if shaded
                     
+            
+                # b. CALCULATE THE AOI CORRECTED IRRADIANCE ON THE FRONT OF THE PV MODULE, AND IRRADIANCE REFLECTED FROM FRONT OF PV MODULE ***************************
+                #double[] frontGTI = new double[sensorsy], frontReflected = new double[sensorsy]
+                #double aveGroundGHI = 0.0          # Average GHI on ground under PV array
                     
-                    if tracking==True:
-                        outputvalues.append(tilt)
-                        outputvalues.append(sazm)
-                        outputvalues.append(C)
-                        outputvalues.append(D)
+                if (calcule_gti):
+                    aveGroundGHI, frontGTI, frontReflected = getFrontSurfaceIrradiances(rowType, maxShadow, PVfrontSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvFrontSH, frontGroundGHI, num_discrete_elements)
+                    
+                else: # calculate_gti == False
+                    frontReflected = ([0.0] * sensorsy)
+                    frontGTI = gti[index:index+sensorsy]
+                    index += sensorsy
 
-                    if agriPV:
-                        outputvalues.append(str(rearGroundGHI).replace(',', ''))
+                #double inc, tiltr, sazmr
+                inc, tiltr, sazmr = sunIncident(0, tilt, sazm, 45.0, zen, azm)	    # For calling PerezComp to break diffuse into components for 
+                save_inc=inc
+                gtiAllpc, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, inc, tiltr, zen)   # Call to get components for the tilt
+                save_gtiAllpc=gtiAllpc
+                #sw.Write(strLine)
+                #sw.Write(",{0,6:0.00}", hour - 0.5 * dataInterval / 60.0 + minute / 60.0)
+                #sw.Write(",{0,6:0.0},{1,5:0.0},{2,5:0.0},{3,5:0.0},{4,4:0.00},{5,6:0.0},{6,6:0.0}",
+                    #dni * Math.Cos(zen) + dhi, inc * 180.0 / Math.PI, zen * 180.0 / Math.PI, azm * 180.0 / Math.PI, pvFrontSH, aveGroundGHI, gtiAllpc)
+            
+                # CALCULATE THE AOI CORRECTED IRRADIANCE ON THE BACK OF THE PV MODULE
+                #double[] backGTI = new double[sensorsy]
+                backGTI, aveGroundGHI = getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvBackSH, rearGroundGHI, frontGroundGHI, frontReflected, num_discrete_elements, offset=0)
+               
+                inc, tiltr, sazmr = sunIncident(0, 180.0-tilt, sazm-180.0, 45.0, zen, azm)       # For calling PerezComp to break diffuse into components for 
+                gtiAllpc, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, inc, tiltr, zen)   # Call to get components for the tilt
+                    
+                    
+                ## Write output
+                decHRs = hour - 0.5 * dataInterval / 60.0 + minute / 60.0
+                ghi_calc = dni * math.cos(zen) + dhi 
+                incd = save_inc * 180.0 / math.pi
+                zend = zen * 180.0 / math.pi
+                azmd = azm * 180.0 / math.pi
+                outputvalues=[myTimestamp, dni, dhi, albedo, decHRs, 
+                                ghi_calc, incd, zend, azmd, pvFrontSH, aveGroundGHI, 
+                                save_gtiAllpc, pvBackSH, aveGroundGHI, 
+                                gtiAllpc, maxShadow, Tamb, VWind]
+                frontGTIrow=[]
+                backGTIrow=[]
+                    
+                # INVERTING Sensor measurements for tracking when tracker
+                # facing the west side.
+                # TODO: Modify so it works with axis_azm different of 0 
+                #        (sazm = 90 or 270 only)
+                if tracking == True:                                   
+                    if sazm == 270.0:
+                        rangestart = sensorsy-1
+                        rangeend = -1
+                        steprange = -1
+                        rearGroundGHI.reverse()
+                    else:
+                        rangestart = 0
+                        rangeend = sensorsy
+                        steprange = 1
+                else:
+                        rangestart = 0
+                        rangeend = sensorsy
+                        steprange = 1
+                            
+                for k in range(rangestart, rangeend, steprange):
+                    frontGTIrow.append(frontGTI[k])
+                    backGTIrow.append(backGTI[k])      
+                outputvalues+=frontGTIrow
+                outputvalues+=backGTIrow
+                    
+                    
+                if tracking==True:
+                    outputvalues.append(tilt)
+                    outputvalues.append(sazm)
+                    outputvalues.append(C)
+                    outputvalues.append(D)
+
+                if agriPV:
+                    outputvalues.append(str(rearGroundGHI).replace(',', ''))
                         
-                    sw.writerow(outputvalues)
+                output_df.loc[rl] = outputvalues
+
+            finish = time.time()
+            delta = (noRows-rl-1)*(finish-start)/(rl+1)
+            delta_min = int(delta/60)
+            delta_seg = int(60*(delta/60 - int(delta/60)))
+
+            deltaTot = (noRows-1)*(finish-start)/(rl+1)
+            delta_minTot = int(deltaTot/60)
+            delta_segTot = int(60*(deltaTot/60 - int(deltaTot/60)))
+            if (rl+1)%100 == 0:
+                print(f"Progress: {rl+1}/{noRows}; Expected to end in {delta_min:02d}:{delta_seg:02d}min / {delta_minTot:02d}:{delta_segTot:02d}min")
     
-        	# End of daylight if loop 
+        # End of daylight if loop 
     
        # End of myTMY3 rows of data
        
@@ -635,7 +638,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
      
         print( "Finished")
         
-        return
+        return output_df
         
 if __name__ == "__main__":    
 
