@@ -234,7 +234,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
              calculatePVMismatch=False, cellsnum= 72, 
              portraitorlandscape='landscape', bififactor = 1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
-             deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None):
+             deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None, verbose=False):
 
         '''
       
@@ -304,18 +304,19 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
 
         if (clearance_height == None) & (hub_height != None):
             clearance_height = hub_height
-            if tracking == False:
+            if tracking == False and verbose:
                 print('Warning: hub_height passed and is being used as ',
                       'clearance_height for the fixed_tilt routine.')
         elif (clearance_height == None) & (hub_height == None):
             raise Exception('No row distance specified in either D or pitch') 
         elif (clearance_height != None) & (hub_height == None): 
-            if tracking == True:
+            if tracking == True and verbose:
                 print('Warning: clearance_height passed and is being used as ',
                       'hub_height for the tracking routine')
         else:
-            print('Warning: clearance_height and hub_height passed in. Using ' 
-                  + ('hub_height' if tracking else 'clearance_height') )
+            if verbose:
+                print('Warning: clearance_height and hub_height passed in. Using ' 
+                      + ('hub_height' if tracking else 'clearance_height') )
             if tracking == True:
                 clearance_height = hub_height
         
@@ -329,7 +330,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             tilt = 0            # start with tracker tilt = 0
             hub_height = C      # Ground clearance at tilt = 0.  C >= 0.5
             stowingangle = 90
-            if hub_height < 0.5:
+            if hub_height < 0.5 and verbose:
                 print('Warning: tracker hub height C < 0.5 may result in ground clearance errors')
             heightlabel = 'Hub_Height'
 
@@ -350,7 +351,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         dataInterval = (myTMY3.index[1]-myTMY3.index[0]).total_seconds()/60
     
         if not (('azimuth' in myTMY3) and ('zenith' in myTMY3) and ('elevation' in myTMY3)):
-            solpos, sunup = sunrisecorrectedsunposition(myTMY3, meta, deltastyle = deltastyle)
+            solpos, sunup = sunrisecorrectedsunposition(myTMY3, meta, deltastyle = deltastyle, verbose=verbose)
             myTMY3['zenith'] = np.radians(solpos['zenith'].to_numpy())
             myTMY3['azimuth'] = np.radians(solpos['azimuth'].to_numpy())
             myTMY3['elevation']=np.radians(solpos['elevation'].to_numpy())
@@ -374,40 +375,45 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         # Check what Albedo to se:
         if albedo == None:
             if 'Alb' in myTMY3:
-                print("Using albedo from TMY3 file.")
-                print("Note that at the moment, no validation check is done",
-                      "in the albedo data, so we assume it's correct and valid.\n")
+                if verbose:
+                    print("Using albedo from TMY3 file.")
+                    print("Note that at the moment, no validation check is done",
+                          "in the albedo data, so we assume it's correct and valid.\n")
                 useTMYalbedo = True
             else:
-                print("No albedo value set or included in TMY3 file", 
-                      "(TMY Column name 'Alb (unitless)' expected)",
-                      "Setting albedo default to 0.2\n ")
+                if verbose:
+                    print("No albedo value set or included in TMY3 file", 
+                          "(TMY Column name 'Alb (unitless)' expected)",
+                          "Setting albedo default to 0.2\n ")
                 albedo = 0.2
                 useTMYalbedo=False
         else:
             if 'Alb' in myTMY3:
-                print("Albedo value passed, but also present in TMY3 file. ",
-                      "Using albedo value passed. To use the ones in TMY3 file",
-                      "re-run simulation with albedo=None\n")
+                if verbose:
+                    print("Albedo value passed, but also present in TMY3 file. ",
+                          "Using albedo value passed. To use the ones in TMY3 file",
+                          "re-run simulation with albedo=None\n")
             useTMYalbedo=False
 
         ## Distance between rows for no shading on Dec 21 at 9 am
-        print( " ")
-        print( "********* ")
-        print( "Running Simulation for TMY3: ")
-        print( "Location:  ", name)
-        print( "Lat: ", lat, " Long: ", lng, " Tz ", tz)
-        print( "Parameters: tilt: ", tilt, "  Sazm: ", sazm, "   ", 
-              heightlabel, ": ", C, "  Pitch: ", pitch, "  Row type: ", rowType, 
-              "  Albedo: ", albedo)
-        print( "Saving into", writefiletitle)
-        print( " ")
-        print( " ")
+        if verbose:
+            print( " ")
+            print( "********* ")
+            print( "Running Simulation for TMY3: ")
+            print( "Location:  ", name)
+            print( "Lat: ", lat, " Long: ", lng, " Tz ", tz)
+            print( "Parameters: tilt: ", tilt, "  Sazm: ", sazm, "   ", 
+                  heightlabel, ": ", C, "  Pitch: ", pitch, "  Row type: ", rowType, 
+                  "  Albedo: ", albedo)
+            # print( "Saving into", writefiletitle)
+            print( " ")
+            print( " ")
         
         DD = rowSpacing(tilt, sazm, lat, lng, tz, 9, 0.0);          ## Distance between rows for no shading on Dec 21 at 9 am
-        print( "Distance between rows for no shading on Dec 21 at 9 am solar time = ", DD)
-        print( "Actual distance between rows = ", D  )
-        print( " ")
+        if verbose:
+            print( "Distance between rows for no shading on Dec 21 at 9 am solar time = ", DD)
+            print( "Actual distance between rows = ", D  )
+            print( " ")
     
         if tracking==False:        
             ## Sky configuration factors are the same for all times, only based on geometry and row type
@@ -423,9 +429,10 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                     
             
         if tracking==False and backtrack==True:
-            print("Warning: tracking=False, but backtracking=True. ",
-                    "Setting backtracking=False because it doesn't make ",
-                    "sense to backtrack on fixed tilt systems.")
+            if verbose:
+                print("Warning: tracking=False, but backtracking=True. ",
+                        "Setting backtracking=False because it doesn't make ",
+                        "sense to backtrack on fixed tilt systems.")
             backtrack = False
         # outputheader=['Latitude(deg)','Longitude(deg)', 'Time Zone','Tilt(deg)', 
         #                 'PV Azimuth(deg)',heightlabel, 'Pitch', 'RowType(first interior last single)',
@@ -453,15 +460,17 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         outputtitles+=allrowfronts
         outputtitles+=allrowbacks
         if tracking == True:
-            print( " ***** IMPORTANT --> THIS SIMULATION Has Tracking Activated")
-            print( "Backtracking Option is set to: ", backtrack)
+            if verbose:
+                print( " ***** IMPORTANT --> THIS SIMULATION Has Tracking Activated")
+                print( "Backtracking Option is set to: ", backtrack)
             outputtitles+=['tilt']
             outputtitles+=['sazm']
             outputtitles+=['height']
             outputtitles+=['D']
 
         if agriPV:
-            print("Saving Ground Irradiance Values for AgriPV Analysis. ")
+            if verbose:
+                print("Saving Ground Irradiance Values for AgriPV Analysis. ")
             outputtitles+=['Ground Irradiance Values']
         
         output_df = pd.DataFrame(columns=outputtitles)
@@ -622,7 +631,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             deltaTot = (noRows-1)*(finish-start)/(rl+1)
             delta_minTot = int(deltaTot/60)
             delta_segTot = int(60*(deltaTot/60 - int(deltaTot/60)))
-            if (rl+1)%100 == 0:
+            if (rl+1)%100 == 0 and verbose:
                 print(f"Progress: {rl+1}/{noRows}; Expected to end in {delta_min:02d}:{delta_seg:02d}min / {delta_minTot:02d}:{delta_segTot:02d}min")
     
         # End of daylight if loop 
@@ -635,8 +644,8 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         if calculatePVMismatch==True:
             analyseVFResultsPVMismatch(filename=writefiletitle, portraitorlandscape=portraitorlandscape, bififactor=bififactor, numcells=cellsnum, writefilename=writefiletitle)
 
-     
-        print( "Finished")
+        if verbose:
+            print( "Finished")
         
         return output_df
         
