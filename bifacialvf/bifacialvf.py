@@ -622,17 +622,6 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                     outputvalues.append(str(rearGroundGHI).replace(',', ''))
                         
                 output_df.loc[rl] = outputvalues
-
-            finish = time.time()
-            delta = (noRows-rl-1)*(finish-start)/(rl+1)
-            delta_min = int(delta/60)
-            delta_seg = int(60*(delta/60 - int(delta/60)))
-
-            deltaTot = (noRows-1)*(finish-start)/(rl+1)
-            delta_minTot = int(deltaTot/60)
-            delta_segTot = int(60*(deltaTot/60 - int(deltaTot/60)))
-            if (rl+1)%100 == 0 and verbose:
-                print(f"Progress: {rl+1}/{noRows}; Expected to end in {delta_min:02d}:{delta_seg:02d}min / {delta_minTot:02d}:{delta_segTot:02d}min")
     
         # End of daylight if loop 
     
