@@ -297,7 +297,10 @@ def getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, beta, sazm,
         
             startElvDown = (j - iStartGrd) * DTOR + elvDOWN;             # Start and ending down elevations for this j loop 
             stopElvDown = (j + 1 - iStartGrd) * DTOR + elvDOWN;
-            projectedX2 = PcellX + np.float64(PcellY) / math.tan(startElvDown);      # Projection of ElvDown to ground in +x direction (X1 and X2 opposite nomenclature for front irradiance method)
+            if startElvDown == 0:
+                projectedX2 = np.inf
+            else:
+                projectedX2 = PcellX + np.float64(PcellY) / math.tan(startElvDown);      # Projection of ElvDown to ground in +x direction (X1 and X2 opposite nomenclature for front irradiance method)
             projectedX1 = PcellX + PcellY / math.tan(stopElvDown);
             actualGroundGHI = 0.0;                                       # Actuall ground GHI from summing array values
             #if (i == 0)
