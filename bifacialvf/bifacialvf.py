@@ -24,14 +24,17 @@ from __future__ import division, print_function, absolute_import
  
 import math
 import csv
+from tkinter import N
 import pvlib
 import os
 #import sys
 #import pytz
 import numpy as np
 import pandas as pd
-# from tqdm import tqdm
+from tqdm import tqdm
 import time
+import sys
+import warnings
 
 from bifacialvf.vf import getBackSurfaceIrradiances, getFrontSurfaceIrradiances, getGroundShadeFactors
 from bifacialvf.vf import getSkyConfigurationFactors, trackingBFvaluescalculator, rowSpacing
@@ -231,10 +234,11 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
              pitch=None, rowType='interior', transFactor=0.01, sensorsy=6, 
              PVfrontSurface='glass', PVbackSurface='glass', albedo=None,  
              tracking=False, backtrack=True, limit_angle=45,
-             calculatePVMismatch=False, cellsnum= 72, 
-             portraitorlandscape='landscape', bififactor = 1.0,
+             calculatePVMismatch=False, cellsnum=72, 
+             portraitorlandscape='landscape', bififactor=1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
-             deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None, verbose=False):
+             deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None,
+             verbose=False, iplant=0, semaphore=None, time_for_logs=None):
 
         '''
       
@@ -269,7 +273,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         -------
         none
         '''    
-
+        warnings.simplefilter("ignore")
         num_discrete_elements = 100
 
         if (calcule_gti == False):
@@ -474,7 +478,6 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             outputtitles+=['Ground Irradiance Values']
         
         output_df = pd.DataFrame(columns=outputtitles)
-        
         start = time.time()
         for rl in range(noRows):
             index = 0
@@ -622,10 +625,31 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                     outputvalues.append(str(rearGroundGHI).replace(',', ''))
                         
                 output_df.loc[rl] = outputvalues
+            end = time.time()
+            total = noRows*(end-start)/(rl+1)
+            passed = end-start
+            hrTotal = int(total/3600)
+            minTotal = int((total-hrTotal*3600)/60)
+            segTotal = int(total-hrTotal*3600-minTotal*60)
+            hrPassed = int(passed/3600)
+            minPassed = int((passed-hrPassed*3600)/60)
+            segPassed = int(passed-hrPassed*3600-minPassed*60)
+            progress_str = f"Plant {iplant:04d} => {hrPassed:02d}:{minPassed:02d}:{segPassed:02d}/{hrTotal:02d}:{minTotal:02d}:{segTotal:02d}"
+            with semaphore:
+                time_for_logs[iplant-1] = progress_str
+                log = ""
+                for l in time_for_logs:
+                    log += l + "\n"
+                if iplant == len(time_for_logs) and rl%100 == 0:
+                    for i, _ in enumerate(log):
+                        if i != 0:
+                            sys.stdout.write('\033[F')  # Move o cursor para a linha anterior
+                    sys.stdout.write('\r' + log)  # Reescreve todas as linhas
+                    sys.stdout.flush()
     
         # End of daylight if loop 
     
-       # End of myTMY3 rows of data
+        # End of myTMY3 rows of data
        
         if calculateBilInterpol==True:
             analyseVFResultsBilInterpol(filename=writefiletitle, portraitorlandscape=portraitorlandscape, bififactor=bififactor, writefilename=writefiletitle)
