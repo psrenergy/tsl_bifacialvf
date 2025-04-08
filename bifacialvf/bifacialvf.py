@@ -238,7 +238,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
              portraitorlandscape='landscape', bififactor=1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
              deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None,
-             verbose=False, iplant=0, semaphore=None, time_for_logs=None):
+             verbose=False, iplant=0, progress_log=None):
 
         '''
       
@@ -478,7 +478,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             outputtitles+=['Ground Irradiance Values']
         
         output_df = pd.DataFrame(columns=outputtitles)
-        start = time.time()
+        start_time = time.time()
         for rl in range(noRows):
             index = 0
                 
@@ -625,31 +625,25 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                     outputvalues.append(str(rearGroundGHI).replace(',', ''))
                         
                 output_df.loc[rl] = outputvalues
-            end = time.time()
-            total = noRows*(end-start)/(rl+1)
-            passed = end-start
-            hrTotal = int(total/3600)
-            minTotal = int((total-hrTotal*3600)/60)
-            segTotal = int(total-hrTotal*3600-minTotal*60)
-            hrPassed = int(passed/3600)
-            minPassed = int((passed-hrPassed*3600)/60)
-            segPassed = int(passed-hrPassed*3600-minPassed*60)
-            progress_str = f"Plant {iplant:04d} => {hrPassed:02d}:{minPassed:02d}:{segPassed:02d}/{hrTotal:02d}:{minTotal:02d}:{segTotal:02d}"
-            with semaphore:
-                time_for_logs[iplant-1] = progress_str
-                log = ""
-                for l in time_for_logs:
-                    log += l + "\n"
-                if iplant == len(time_for_logs) and rl%100 == 0:
-                    for i, _ in enumerate(log):
-                        if i != 0:
-                            sys.stdout.write('\033[F')  # Move o cursor para a linha anterior
-                    sys.stdout.write('\r' + log)  # Reescreve todas as linhas
-                    sys.stdout.flush()
+            loop_end_time = time.time()
+            estimated_total_duration = noRows*(loop_end_time-start_time)/(rl+1)
+            elapsed_time = loop_end_time-start_time
+            estimated_hours = int(estimated_total_duration/3600)
+            estimated_minutes = int((estimated_total_duration-estimated_hours*3600)/60)
+            estimated_seconds = int(estimated_total_duration-estimated_hours*3600-estimated_minutes*60)
+            elapsed_hours = int(elapsed_time/3600)
+            elapsed_minutes = int((elapsed_time-elapsed_hours*3600)/60)
+            elapsed_seconds = int(elapsed_time-elapsed_hours*3600-elapsed_minutes*60)
+            # if hrPassed + minPassed + segPassed < 0.1:
+            #     progress_str = f"Plant {iplant:04d} => Waiting"
+            # else:
+            progress_str = f"Plant {iplant:04d} => {elapsed_hours:02d}:{elapsed_minutes:02d}:{elapsed_seconds:02d}/{estimated_hours:02d}:{estimated_minutes:02d}:{estimated_seconds:02d}"
+            progress_log[iplant-1] = progress_str
     
         # End of daylight if loop 
     
         # End of myTMY3 rows of data
+        progress_log[iplant-1] = f"Plant {iplant:04d} => DONE"
        
         if calculateBilInterpol==True:
             analyseVFResultsBilInterpol(filename=writefiletitle, portraitorlandscape=portraitorlandscape, bififactor=bififactor, writefilename=writefiletitle)
