@@ -422,36 +422,14 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         if tracking==False:        
             ## Sky configuration factors are the same for all times, only based on geometry and row type
             [rearSkyConfigFactors, frontSkyConfigFactors] = getSkyConfigurationFactors(rowType, tilt, C, D)       ## Sky configuration factors are the same for all times, only based on geometry and row type
-    
-     
-        ## Create WriteFile and write labels at this time
-        
-        #check that the save directory exists, unless it's in root
-        savedirectory = os.path.dirname(writefiletitle)
-        if ( (not os.path.exists(savedirectory)) and (savedirectory != '')):
-            os.makedirs(savedirectory)
                     
-            
         if tracking==False and backtrack==True:
             if verbose:
                 print("Warning: tracking=False, but backtracking=True. ",
                         "Setting backtracking=False because it doesn't make ",
                         "sense to backtrack on fixed tilt systems.")
             backtrack = False
-        # outputheader=['Latitude(deg)','Longitude(deg)', 'Time Zone','Tilt(deg)', 
-        #                 'PV Azimuth(deg)',heightlabel, 'Pitch', 'RowType(first interior last single)',
-        #                 'TransmissionFactor(open area fraction)','sensorsy(# hor rows in panel)', 
-        #                 'PVfrontSurface(glass or ARglass)', 'PVbackSurface(glass or ARglass)',
-        #                 'Albedo',  'Tracking', 'backtracking']
-        # outputheadervars=[lat, lng, tz, tilt, sazm, clearance_height, pitch, 
-        #                     rowType, transFactor, sensorsy, PVfrontSurface,
-        #                     PVbackSurface, albedo, tracking, backtrack]
             
-                                            
-        # sw.writerow(outputheader)
-        # sw.writerow(outputheadervars)
-            
-        # Write Results names"
         allrowfronts=[]
         allrowbacks=[]
         for k in range(0, sensorsy):
@@ -563,11 +541,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                 save_inc=inc
                 gtiAllpc, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, inc, tiltr, zen)   # Call to get components for the tilt
                 save_gtiAllpc=gtiAllpc
-                #sw.Write(strLine)
-                #sw.Write(",{0,6:0.00}", hour - 0.5 * dataInterval / 60.0 + minute / 60.0)
-                #sw.Write(",{0,6:0.0},{1,5:0.0},{2,5:0.0},{3,5:0.0},{4,4:0.00},{5,6:0.0},{6,6:0.0}",
-                    #dni * Math.Cos(zen) + dhi, inc * 180.0 / Math.PI, zen * 180.0 / Math.PI, azm * 180.0 / Math.PI, pvFrontSH, aveGroundGHI, gtiAllpc)
-            
+                
                 # CALCULATE THE AOI CORRECTED IRRADIANCE ON THE BACK OF THE PV MODULE
                 #double[] backGTI = new double[sensorsy]
                 backGTI, aveGroundGHI = getBackSurfaceIrradiances(rowType, maxShadow, PVbackSurface, tilt, sazm, dni, dhi, C, D, albedo, zen, azm, sensorsy, pvBackSH, rearGroundGHI, frontGroundGHI, frontReflected, num_discrete_elements, offset=0)
@@ -576,7 +550,6 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                 gtiAllpc, iso_dif, circ_dif, horiz_dif, grd_dif, beam = perezComp(dni, dhi, albedo, inc, tiltr, zen)   # Call to get components for the tilt
                     
                     
-                ## Write output
                 decHRs = hour - 0.5 * dataInterval / 60.0 + minute / 60.0
                 ghi_calc = dni * math.cos(zen) + dhi 
                 incd = save_inc * 180.0 / math.pi
@@ -634,9 +607,6 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             elapsed_hours = int(elapsed_time/3600)
             elapsed_minutes = int((elapsed_time-elapsed_hours*3600)/60)
             elapsed_seconds = int(elapsed_time-elapsed_hours*3600-elapsed_minutes*60)
-            # if hrPassed + minPassed + segPassed < 0.1:
-            #     progress_str = f"Plant {iplant:04d} => Waiting"
-            # else:
             progress_str = f"Plant {iplant:04d} => {elapsed_hours:02d}:{elapsed_minutes:02d}:{elapsed_seconds:02d}/{estimated_hours:02d}:{estimated_minutes:02d}:{estimated_seconds:02d}"
             progress_log[iplant-1] = progress_str
     
