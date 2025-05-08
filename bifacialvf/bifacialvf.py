@@ -456,8 +456,9 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             outputtitles+=['Ground Irradiance Values']
         
         output_df = pd.DataFrame(columns=outputtitles)
-        start_time = time.time()
         for rl in range(noRows):
+            progress_log[iplant-1] = (rl + 1, noRows)
+
             index = 0
                 
             myTimestamp=myTMY3.index[rl]
@@ -469,8 +470,6 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
             else: Tamb=0	            
             if 'Wspd' in myTMY3: VWind = myTMY3.Wspd.iloc[rl]	           
             else: VWind=0
-                
-
                 
             if useTMYalbedo:
                 albedo = myTMY3.Alb[rl]
@@ -598,22 +597,11 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
                     outputvalues.append(str(rearGroundGHI).replace(',', ''))
                         
                 output_df.loc[rl] = outputvalues
-            loop_end_time = time.time()
-            estimated_total_duration = noRows*(loop_end_time-start_time)/(rl+1)
-            elapsed_time = loop_end_time-start_time
-            estimated_hours = int(estimated_total_duration/3600)
-            estimated_minutes = int((estimated_total_duration-estimated_hours*3600)/60)
-            estimated_seconds = int(estimated_total_duration-estimated_hours*3600-estimated_minutes*60)
-            elapsed_hours = int(elapsed_time/3600)
-            elapsed_minutes = int((elapsed_time-elapsed_hours*3600)/60)
-            elapsed_seconds = int(elapsed_time-elapsed_hours*3600-elapsed_minutes*60)
-            progress_str = f"Plant {iplant:04d} => {elapsed_hours:02d}:{elapsed_minutes:02d}:{elapsed_seconds:02d}/{estimated_hours:02d}:{estimated_minutes:02d}:{estimated_seconds:02d}"
-            progress_log[iplant-1] = progress_str
     
         # End of daylight if loop 
     
         # End of myTMY3 rows of data
-        progress_log[iplant-1] = f"Plant {iplant:04d} => DONE"
+        progress_log[iplant-1] = "DONE"
        
         if calculateBilInterpol==True:
             analyseVFResultsBilInterpol(filename=writefiletitle, portraitorlandscape=portraitorlandscape, bififactor=bififactor, writefilename=writefiletitle)
