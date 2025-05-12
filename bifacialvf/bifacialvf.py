@@ -238,7 +238,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
              portraitorlandscape='landscape', bififactor=1.0,
              calculateBilInterpol=False, BilInterpolParams=None,
              deltastyle='TMY3', agriPV=False, calcule_gti=False, data=None, angles=None,
-             verbose=False, iplant=0, progress_log=None):
+             verbose=False, iplant=0, progress_log=None, plant_name=None):
 
         '''
       
@@ -457,7 +457,7 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         
         output_df = pd.DataFrame(columns=outputtitles)
         for rl in range(noRows):
-            progress_log[iplant-1] = (rl + 1, noRows)
+            progress_log[iplant-1] = (rl + 1, noRows, plant_name)
 
             index = 0
                 
