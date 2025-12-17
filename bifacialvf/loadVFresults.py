@@ -7,11 +7,7 @@ Created on Thu Jun 15 14:18:48 2017
 """
 from __future__ import division, print_function # ensure python3 compatible division and printing
 import io
-try:
-    from urllib2 import urlopen
-except ImportError:
-    from urllib.request import urlopen
-
+from urllib.request import urlopen
 import pandas as pd
 
 
