@@ -42,9 +42,8 @@ from bifacialvf.sun import  perezComp,  sunIncident, sunrisecorrectedsunposition
 
 #from bifacialvf.readepw import readepw
 
-# Electrical Mismatch Calculation 
-from bifacialvf.analysis import analyseVFResultsBilInterpol, analyseVFResultsPVMismatch
-#import bifacialvf.analysis as analysis
+# Electrical Mismatch Calculation: bifacialvf.analysis is imported only where it is used, since it
+# loads pvmismatch, which in turn loads matplotlib
 
 from gsee import trigon
 
@@ -604,9 +603,11 @@ def simulate(myTMY3, meta, azimFlag, writefiletitle=None, tilt=0, sazm=180,
         progress_log[iplant-1] = "DONE"
        
         if calculateBilInterpol==True:
+            from bifacialvf.analysis import analyseVFResultsBilInterpol
             analyseVFResultsBilInterpol(filename=writefiletitle, portraitorlandscape=portraitorlandscape, bififactor=bififactor, writefilename=writefiletitle)
 
         if calculatePVMismatch==True:
+            from bifacialvf.analysis import analyseVFResultsPVMismatch
             analyseVFResultsPVMismatch(filename=writefiletitle, portraitorlandscape=portraitorlandscape, bififactor=bififactor, numcells=cellsnum, writefilename=writefiletitle)
 
         if verbose:
